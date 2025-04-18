@@ -24,7 +24,7 @@ GEN_H_YAC = parser.tab.h
 EXEC = parser
 
 # Test files (Assuming they exist in ./test/)
-TEST_DIR = test
+TEST_DIR = ../lw4/test
 TEST_FILES = $(wildcard $(TEST_DIR)/*.txt)
 
 # Default target
@@ -45,21 +45,23 @@ $(GEN_C_YAC) $(GEN_H_YAC): $(SRC_Y)
 # Run tests
 test: $(EXEC)
 	@echo "Running tests..."
+	@# Create test directory if it doesn't exist (optional, good practice)
 	@mkdir -p $(TEST_DIR)
+	@# Check if test files exist
 	@if [ -z "$(TEST_FILES)" ]; then \
-		echo "WARNING: No test files found in $(TEST_DIR)/. Create some .txt files."; \
+		echo "WARNING: No test files found in $(TEST_DIR)/. Please create some .txt files."; \
 		exit 0; \
 	fi
+	@# Loop through all test files
 	@for test_file in $(TEST_FILES); do \
 		echo ""; \
-		echo ">>> Testing with $$test_file <<<"; \
-		echo "Input:"; \
-		cat $$test_file; \
-		echo "Output:"; \
-		./$(EXEC) $$test_file; \
-		echo ">>> Exit code: $$? <<<"; \
+		echo "=========================================="; \
+		echo "Testing with $$test_file:"; \
+		cat $$test_file || echo ">>> Error reading $$test_file <<<"; \
+		echo ""; \
+		./parser $$test_file; \
 	done
-	@echo ""; \
+	@echo ""
 	@echo "All tests finished."
 
 # Clean generated files

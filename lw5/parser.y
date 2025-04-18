@@ -1,4 +1,3 @@
-/* parser.y - Строит AST и печатает его */
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +10,9 @@ extern int yylineno;
 extern FILE *yyin;
 extern int ch;
 
-// Прототип функции ошибки
+// --- Флаг для отслеживания ошибок ---
+int parse_error_occurred = 0;
+
 void yyerror(const char *s);
 
 // --- Структура узла AST ---
@@ -174,33 +175,33 @@ statement_list: statement
         | statement_list T_SEPARATOR statement
             { $$ = append_statement($1, $3); }
         | statement_list T_SEPARATOR
+            { $$ = $1; }
         ;
 
-// Важно: Убрали T_SEPARATOR отсюда, он теперь в statement_list
 statement: T_IDENTIFIER T_ASSIGN_OP expression
-            //{ $$ = create_assign_node($1, $3); }
             { $$ = create_assign_node(create_leaf(NODE_TYPE_IDENTIFIER, $1), $3); }
+         | error T_SEPARATOR { yyerrok; $$ = NULL; } 
          ;
 
-expression: term                     { $$ = $1; /* Передаем узел AST от term */ }
+expression: term                     { $$ = $1; }
           | expression T_ADD_OP term { $$ = create_op_node("+", $1, $3); }
           | expression T_SUB_OP term { $$ = create_op_node("-", $1, $3); }
           ;
 
-term:     factor                 { $$ = $1; /* Передаем узел AST от factor */ }
+term:     factor                 { $$ = $1; }
         | term T_MUL_OP factor   { $$ = create_op_node("*", $1, $3); }
         | term T_DIV_OP factor   { $$ = create_op_node("/", $1, $3); }
         ;
 
 factor:   T_IDENTIFIER         { $$ = create_leaf(NODE_TYPE_IDENTIFIER, $1); }
         | T_CHAR_CONST         { $$ = create_leaf(NODE_TYPE_CHAR_CONST, $1); }
-        | T_LPAREN expression T_RPAREN { $$ = $2; /* Передаем узел AST из скобок */ }
+        | T_LPAREN expression T_RPAREN { $$ = $2; }
         ;
 
 %%
-/* --- Пользовательский Код --- */
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     if (argc > 1) {
         yyin = fopen(argv[1], "r");
         if (!yyin) { perror(argv[1]); return 1; }
@@ -208,29 +209,40 @@ int main(int argc, char **argv) {
         yyin = stdin; printf("Reading from stdin...\n");
     }
 
+    parse_error_occurred = 0; // Сбрасываем флаг перед парсингом
+
     printf("--- Parsing and Building AST ---\n");
-    int result = yyparse(); // Запускаем парсер, строим AST в ast_root
+    int bison_result = yyparse(); // Запускаем парсер
     printf("--- Parsing Finished ---\n");
 
-    if (result == 0 && ast_root != NULL)
-    {
-        printf("\n--- Abstract Syntax Tree ---\n");
-        print_ast(ast_root, 0); // Печатаем построенное дерево
-        printf("--- End AST ---\n");
+    if (bison_result == 0 && parse_error_occurred == 0) {
+        // Успех ТОЛЬКО если yyparse вернул 0 И наш флаг ошибки не установлен
+        if (ast_root != NULL) {
+            printf("\n--- Abstract Syntax Tree ---\n");
+            print_ast(ast_root, 0);
+            printf("--- End AST ---\n");
+        } else {
+            printf("\n(No tree generated - empty input?)\n");
+        }
         printf("\nParse successful.\n");
-    }
-    else if (result == 0 && ast_root == NULL)
-        printf("\nParse successful (empty input).\n");
-    else
+    } else {
+        // Неудача, если yyparse вернул не 0 ИЛИ если была зафиксирована ошибка
         printf("\nParse failed.\n");
+        if (parse_error_occurred) {
+             printf("(Errors were detected during parsing)\n");
+        }
+        if (ast_root) {
+            printf("\n--- Partial/Incorrect Abstract Syntax Tree (due to errors) ---\n");
+            print_ast(ast_root, 0); // Печатаем то, что успело построиться
+            printf("--- End AST ---\n");
+        }
+    }
 
     if (ast_root) free_ast(ast_root);
-
-
-    if (yyin != stdin) { fclose(yyin); }
-    return result;
+    if (yyin != stdin) fclose(yyin);
 }
 
 void yyerror(const char *s) {
-    fprintf(stderr, "\nError on (%d:%d) near '%s': %s\n", yylineno, ch, yytext ? yytext : "<null>", s);
+    parse_error_occurred = 1;
+    fprintf(stdout, "\nError on (%d:%d) near '%s': %s\n", yylineno, ch, yytext ? yytext : "<null>", s);
 }
