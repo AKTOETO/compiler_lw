@@ -21,7 +21,8 @@ typedef enum {
     NODE_TYPE_ASSIGN,     // Операция присваивания (sval = ID назначения)
     NODE_TYPE_OP,         // Бинарная операция (sval = '+', '-', '*', '/')
     NODE_TYPE_IDENTIFIER, // Идентификатор (sval = имя)
-    NODE_TYPE_CHAR_CONST  // Символьная константа (sval = 'c')
+    NODE_TYPE_CHAR_CONST, // Символьная константа (sval = 'c')
+    NODE_TYPE_PAREN       // Блок скобок
 } NodeType;
 
 // Структура узла
@@ -71,6 +72,12 @@ ASTNode* create_assign_node(ASTNode *left, ASTNode *right)
     return create_node(NODE_TYPE_ASSIGN, left, right, NULL, NULL);
 }
 
+// Создание узла скобок
+ASTNode* create_parenth_node(ASTNode* node)
+{
+    return create_node(NODE_TYPE_PAREN, node, NULL, NULL, NULL);
+}
+
 // Добавление оператора в конец списка
 ASTNode* append_statement(ASTNode *list_head, ASTNode *new_statement) {
     if (!list_head) {
@@ -114,8 +121,12 @@ void print_ast(ASTNode *node, int indent) {
         case NODE_TYPE_CHAR_CONST:
             printf("CHAR_CONST (%s)\n", node->sval ? node->sval : "??");
             break;
+        case NODE_TYPE_PAREN:
+            printf("PARENTHESES\n");
+            print_ast(node->left, indent + 1);
+            break;
         default:
-            printf("Unknown Node Type\n");
+            printf("Unknown Node Type: %d\n", node->type);
     }
 
     // Печатаем следующий оператор в списке, если он есть
@@ -167,15 +178,16 @@ void free_ast(ASTNode *node) {
 program: /* empty */
             { $$ = NULL; ast_root = $$; /* Пустое дерево */ }
         | statement_list
-            { $$ = create_node(NODE_TYPE_PROGRAM, $1, NULL, NULL, NULL); ast_root = $$; /* Корень дерева - список операторов */ }
+            {
+                $$ = create_node(NODE_TYPE_PROGRAM, $1, NULL, NULL, NULL);
+                ast_root = $$;
+            }
         ;
 
 statement_list: statement
             { $$ = $1; /* Голова списка - первый оператор */ }
-        | statement_list T_SEPARATOR statement
-            { $$ = append_statement($1, $3); }
-        | statement_list T_SEPARATOR
-            { $$ = $1; }
+        | statement_list T_SEPARATOR statement { $$ = append_statement($1, $3); }
+        | statement_list T_SEPARATOR { $$ = $1; }
         ;
 
 statement: T_IDENTIFIER T_ASSIGN_OP expression
@@ -195,7 +207,7 @@ term:     factor                 { $$ = $1; }
 
 factor:   T_IDENTIFIER         { $$ = create_leaf(NODE_TYPE_IDENTIFIER, $1); }
         | T_CHAR_CONST         { $$ = create_leaf(NODE_TYPE_CHAR_CONST, $1); }
-        | T_LPAREN expression T_RPAREN { $$ = $2; }
+        | T_LPAREN expression T_RPAREN { $$ = create_parenth_node($2); }
         ;
 
 %%
