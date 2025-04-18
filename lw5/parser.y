@@ -89,13 +89,13 @@ void print_ast(ASTNode *node, int indent) {
     if (!node) return;
 
     // Печать отступа
-    for (int i = 0; i < indent; ++i) printf("  "); // 2 пробела на уровень
+    for (int i = 0; i < indent; ++i) printf("  ");
 
     // Печать информации об узле
     switch(node->type) {
         case NODE_TYPE_PROGRAM:
             printf("PROGRAM\n");
-            print_ast(node->left, indent); // Печатаем первый statement
+            print_ast(node->left, indent + 1);
             break;
         case NODE_TYPE_ASSIGN:
             printf("ASSIGN\n");
@@ -104,8 +104,8 @@ void print_ast(ASTNode *node, int indent) {
             break;
         case NODE_TYPE_OP:
             printf("EXPRESSION (%s)\n", node->sval ? node->sval : "??");
-            print_ast(node->left, indent + 1);  // Левый операнд
-            print_ast(node->right, indent + 1); // Правый операнд
+            print_ast(node->left, indent + 1);
+            print_ast(node->right, indent + 1);
             break;
         case NODE_TYPE_IDENTIFIER:
             printf("IDENTIFIER (%s)\n", node->sval ? node->sval : "??");
@@ -119,9 +119,9 @@ void print_ast(ASTNode *node, int indent) {
 
     // Печатаем следующий оператор в списке, если он есть
     // (только для узлов, которые могут быть в списке - PROGRAM/ASSIGN)
-     if (node->type == NODE_TYPE_PROGRAM || node->type == NODE_TYPE_ASSIGN) {
-          print_ast(node->next, indent); // Печатаем следующий на том же уровне
-     }
+    if (node->type == NODE_TYPE_PROGRAM || node->type == NODE_TYPE_ASSIGN) {
+        print_ast(node->next, indent); // Печатаем следующий на том же уровне
+    }
 }
 
 // --- Функция освобождения памяти AST ---
@@ -174,15 +174,12 @@ statement_list: statement
         | statement_list T_SEPARATOR statement
             { $$ = append_statement($1, $3); }
         | statement_list T_SEPARATOR
-            //{ $$ = append_statement($1, $1); }
         ;
 
 // Важно: Убрали T_SEPARATOR отсюда, он теперь в statement_list
 statement: T_IDENTIFIER T_ASSIGN_OP expression
             //{ $$ = create_assign_node($1, $3); }
             { $$ = create_assign_node(create_leaf(NODE_TYPE_IDENTIFIER, $1), $3); }
-         | error T_SEPARATOR
-            { yyerrok; $$ = NULL; /* При ошибке не создаем узел, разрешаем следующую ошибку */ }
          ;
 
 expression: term                     { $$ = $1; /* Передаем узел AST от term */ }
