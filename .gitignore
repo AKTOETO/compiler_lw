@@ -1,0 +1,6 @@
+scanner
+test.txt
+parser
+parser.tab.h
+parser.tab.c
+lex.yy.c

@@ -1,0 +1,4 @@
+space := ' ';
+plus  := '+';
+digit := '9';
+paren := '(';

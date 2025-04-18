@@ -1,0 +1,4 @@
+v := 'vaa' 1
+`invalid := 'xy' + $ / 4;
+chto1 = z
+da := da

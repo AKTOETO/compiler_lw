@@ -1,0 +1,3 @@
+result := (a + 'b') * c;
+val := 'z';
+oleg := val + (a + result * 'c' * '1' + (val * '3'));
